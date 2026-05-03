@@ -1,0 +1,19 @@
+[versions]
+spotless = "8.2.1"
+blossom = "2.2.0"
+idea-ext = "1.4.1"
+shadow = "9.3.1"
+velocity-api = "3.5.0-SNAPSHOT"
+configurate-yaml = "4.1.2"
+commons-lang3 = "3.20.0"
+
+[libraries]
+velocity-api = { group = "com.velocitypowered", name = "velocity-api", version.ref = "velocity-api" }
+configurate-yaml = { group = "org.spongepowered", name = "configurate-yaml", version.ref = "configurate-yaml" }
+commons-lang3 = { group = "org.apache.commons", name = "commons-lang3", version.ref = "commons-lang3" }
+
+[plugins]
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+blossom = { id = "net.kyori.blossom", version.ref = "blossom" }
+idea-ext = { id = "org.jetbrains.gradle.plugin.idea-ext", version.ref = "idea-ext" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
