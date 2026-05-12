@@ -2,6 +2,7 @@ package cc.maicra999.lunalike.config;
 
 import cc.maicra999.lunalike.text.transcribe.GoogleConverter;
 import cc.maicra999.lunalike.text.transcribe.YukiKanaConverter;
+import java.util.List;
 import java.util.function.Function;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 
@@ -16,10 +17,12 @@ public class LunaLikeConfig {
     public String contentFormat = "<transcribed> <dark_gray>(<original>)</dark_gray>";
     public String messageFormat = "<sender> <content>";
 
+    public List<String> forwardChatEventServers = List.of("vanilla");
+
     public boolean pluginCompatibilityMode = true;
     public boolean sendMessageToCurrentServer = true;
     public boolean sendMessageToOtherServers = true;
-    public boolean forwardChatEvents = false;
+    public boolean forwardOriginalMessage = true;
 
     public enum TranscriptionMode {
         NONE(Function.identity()),

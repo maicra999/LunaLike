@@ -110,8 +110,17 @@ public class ChatEventListener {
         String plain = PlainTextComponentSerializer.plainText().serialize(externalServerMessage);
         lunaLike.getServer().getConsoleCommandSource().sendMessage(Component.text(plain));
 
-        if (!lunaLike.getConfig().forwardChatEvents) {
+        String currentServer = event.getPlayer()
+                .getCurrentServer()
+                .map(connection -> connection.getServerInfo().getName())
+                .orElse(null);
+
+        if (!lunaLike.getConfig().forwardChatEventServers.contains(currentServer)) {
             event.setResult(PlayerChatEvent.ChatResult.denied());
+        } else if (lunaLike.getConfig().forwardOriginalMessage) {
+            if (entry != null) {
+                event.setResult(PlayerChatEvent.ChatResult.message(entry.original()));
+            }
         }
 
         if (lunaLike.getConfig().sendMessageToCurrentServer) {
@@ -121,11 +130,6 @@ public class ChatEventListener {
         }
 
         if (lunaLike.getConfig().sendMessageToOtherServers) {
-            String currentServer = event.getPlayer()
-                    .getCurrentServer()
-                    .map(connection -> connection.getServerInfo().getName())
-                    .orElse(null);
-
             for (RegisteredServer server : lunaLike.getServer().getAllServers()) {
                 if (server.getServerInfo().getName().equals(currentServer)) {
                     continue;
