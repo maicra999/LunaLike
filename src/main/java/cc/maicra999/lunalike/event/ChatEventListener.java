@@ -31,6 +31,13 @@ public class ChatEventListener {
     @Subscribe(priority = 100)
     public void onPlayerChatPre(PlayerChatEvent event) {
         String message = getCurrentMessage(event);
+        for (String pattern : lunaLike.getConfig().silencedContentPatterns) {
+            if (message.matches(pattern)) {
+                event.setResult(PlayerChatEvent.ChatResult.denied());
+                return;
+            }
+        }
+
         Component transcribed = lunaLike.getTranscription().transcribe(message);
         if (transcribed == null) {
             return;
@@ -55,86 +62,100 @@ public class ChatEventListener {
     @Subscribe(priority = -100)
     public void onPlayerChatPost(PlayerChatEvent event) {
         String message = getCurrentMessage(event);
-        if (lunaLike.getConfig().pluginCompatibilityMode) {
-            // Use the original message from cache
-            TranscriptionCacheEntry entry = transcriptionCache.getIfPresent(event);
-            if (entry != null) {
-                message = entry.original();
-            }
-        }
-
-        Component transcribed = null;
-        TranscriptionCacheEntry entry = transcriptionCache.getIfPresent(event);
-        if (entry != null) {
-            transcribed = entry.transcribed();
-        }
-
-        Component content;
-        if (transcribed == null) {
-            content = Component.text(message);
-        } else {
-            content = MiniMessage.miniMessage()
-                    .deserialize(
-                            lunaLike.getConfig().contentFormat,
-                            Placeholder.component("transcribed", transcribed),
-                            Placeholder.unparsed("original", message));
-        }
-
-        Component currentServerSender = MiniMessage.miniMessage()
-                .deserialize(
-                        lunaLike.getConfig().senderFormat,
-                        Placeholder.unparsed("player", event.getPlayer().getUsername()));
-        Component externalServerSender = MiniMessage.miniMessage()
-                .deserialize(
-                        lunaLike.getConfig().externalSenderFormat,
-                        Placeholder.unparsed("player", event.getPlayer().getUsername()),
-                        Placeholder.unparsed(
-                                "server",
-                                event.getPlayer()
-                                        .getCurrentServer()
-                                        .map(connection ->
-                                                connection.getServerInfo().getName())
-                                        .orElse("unknown")));
-
-        Component currentServerMessage = MiniMessage.miniMessage()
-                .deserialize(
-                        lunaLike.getConfig().messageFormat,
-                        Placeholder.component("sender", currentServerSender),
-                        Placeholder.component("content", content));
-        Component externalServerMessage = MiniMessage.miniMessage()
-                .deserialize(
-                        lunaLike.getConfig().messageFormat,
-                        Placeholder.component("sender", externalServerSender),
-                        Placeholder.component("content", content));
-
-        String plain = PlainTextComponentSerializer.plainText().serialize(externalServerMessage);
-        lunaLike.getServer().getConsoleCommandSource().sendMessage(Component.text(plain));
 
         String currentServer = event.getPlayer()
                 .getCurrentServer()
                 .map(connection -> connection.getServerInfo().getName())
                 .orElse(null);
 
-        if (!lunaLike.getConfig().forwardChatEventServers.contains(currentServer)) {
-            event.setResult(PlayerChatEvent.ChatResult.denied());
-        } else if (lunaLike.getConfig().forwardOriginalMessage) {
-            if (entry != null) {
-                event.setResult(PlayerChatEvent.ChatResult.message(entry.original()));
+        boolean silenced = false;
+        for (String pattern : lunaLike.getConfig().silencedContentPatterns) {
+            if (message.matches(pattern)) {
+                silenced = true;
+                break;
             }
         }
 
-        if (lunaLike.getConfig().sendMessageToCurrentServer) {
-            event.getPlayer()
-                    .getCurrentServer()
-                    .ifPresent(connection -> connection.getServer().sendMessage(currentServerMessage));
+        if (!silenced) {
+            if (lunaLike.getConfig().pluginCompatibilityMode) {
+                // Use the original message from cache
+                TranscriptionCacheEntry entry = transcriptionCache.getIfPresent(event);
+                if (entry != null) {
+                    message = entry.original();
+                }
+            }
+
+            Component transcribed = null;
+            TranscriptionCacheEntry entry = transcriptionCache.getIfPresent(event);
+            if (entry != null) {
+                transcribed = entry.transcribed();
+            }
+
+            Component content;
+            if (transcribed == null) {
+                content = Component.text(message);
+            } else {
+                content = MiniMessage.miniMessage()
+                        .deserialize(
+                                lunaLike.getConfig().contentFormat,
+                                Placeholder.component("transcribed", transcribed),
+                                Placeholder.unparsed("original", message));
+            }
+
+            Component currentServerSender = MiniMessage.miniMessage()
+                    .deserialize(
+                            lunaLike.getConfig().senderFormat,
+                            Placeholder.unparsed("player", event.getPlayer().getUsername()));
+            Component externalServerSender = MiniMessage.miniMessage()
+                    .deserialize(
+                            lunaLike.getConfig().externalSenderFormat,
+                            Placeholder.unparsed("player", event.getPlayer().getUsername()),
+                            Placeholder.unparsed(
+                                    "server",
+                                    event.getPlayer()
+                                            .getCurrentServer()
+                                            .map(connection ->
+                                                    connection.getServerInfo().getName())
+                                            .orElse("unknown")));
+
+            Component currentServerMessage = MiniMessage.miniMessage()
+                    .deserialize(
+                            lunaLike.getConfig().messageFormat,
+                            Placeholder.component("sender", currentServerSender),
+                            Placeholder.component("content", content));
+            Component externalServerMessage = MiniMessage.miniMessage()
+                    .deserialize(
+                            lunaLike.getConfig().messageFormat,
+                            Placeholder.component("sender", externalServerSender),
+                            Placeholder.component("content", content));
+
+            String plain = PlainTextComponentSerializer.plainText().serialize(externalServerMessage);
+            lunaLike.getServer().getConsoleCommandSource().sendMessage(Component.text(plain));
+
+            if (lunaLike.getConfig().sendMessageToCurrentServer) {
+                event.getPlayer()
+                        .getCurrentServer()
+                        .ifPresent(connection -> connection.getServer().sendMessage(currentServerMessage));
+            }
+
+            if (lunaLike.getConfig().sendMessageToOtherServers) {
+                for (RegisteredServer server : lunaLike.getServer().getAllServers()) {
+                    if (server.getServerInfo().getName().equals(currentServer)) {
+                        continue;
+                    }
+                    server.sendMessage(externalServerMessage);
+                }
+            }
+        } else {
+            event.setResult(PlayerChatEvent.ChatResult.allowed());
         }
 
-        if (lunaLike.getConfig().sendMessageToOtherServers) {
-            for (RegisteredServer server : lunaLike.getServer().getAllServers()) {
-                if (server.getServerInfo().getName().equals(currentServer)) {
-                    continue;
-                }
-                server.sendMessage(externalServerMessage);
+        if (!lunaLike.getConfig().forwardChatEventServers.contains(currentServer)) {
+            event.setResult(PlayerChatEvent.ChatResult.denied());
+        } else if (lunaLike.getConfig().forwardOriginalMessage) {
+            TranscriptionCacheEntry entry = transcriptionCache.getIfPresent(event);
+            if (entry != null) {
+                event.setResult(PlayerChatEvent.ChatResult.message(entry.original()));
             }
         }
     }

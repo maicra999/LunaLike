@@ -18,6 +18,7 @@ public class LunaLikeConfig {
     public String messageFormat = "<sender> <content>";
 
     public List<String> forwardChatEventServers = List.of("vanilla");
+    public List<String> silencedContentPatterns = List.of("\\d+\\.?\\d*|\\.\\d+", "cancel");
 
     public boolean pluginCompatibilityMode = true;
     public boolean sendMessageToCurrentServer = true;
